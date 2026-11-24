@@ -1,8 +1,74 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/reader-dark.svg">
+  <img alt="A scenario reader on a bench: a card printed orders.feature rides under three spring plungers, one per sentence (Given, When, Then); the lamp on the bridge is green: every step passed." src="docs/reader-light.svg" width="720">
+</picture>
+
 # behave-e2e-starter
 
-End-to-end tests for integration flows, written in Gherkin and run with [behave](https://behave.readthedocs.io).
-A scenario in plain sentences is the spec; each sentence runs as one small Python step. One inventory covers four
-integration patterns, plus the flows that cross them:
+**End-to-end tests in plain sentences.** Gherkin scenarios, run by [behave](https://behave.readthedocs.io), against
+REST APIs, file transfer, SAP IDocs and Workato: offline in seconds, and the same scenarios against a real landscape.
+
+[![check](https://github.com/makavli/behave-e2e-starter/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/makavli/behave-e2e-starter/actions/workflows/check.yml)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
+![Runs on Windows, Linux and macOS](https://img.shields.io/badge/runs%20on-Windows%20%7C%20Linux%20%7C%20macOS-444)
+![Gherkin and behave](https://img.shields.io/badge/BDD-Gherkin%20%2B%20behave-23D96C?logo=cucumber&logoColor=white)
+![Cost: 0](https://img.shields.io/badge/cost-%240-2ea44f)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+[Run it](#run-it) · [Make it yours](#make-it-yours) · [AI agents](#with-an-ai-coding-agent) · [Pipelines](#pipelines) · [Secrets](#secrets-openbao-a-free-stand-in-for-azure-key-vault)
+
+</div>
+
+<p align="center">
+  <img src="docs/run.gif" alt="python ci/run.py in a terminal: the inventory, 26 framework self-tests OK, then behave runs every scenario against the built-in stand-ins; 52 scenarios passed, 0 failed, 8 skipped, in 4.4 seconds." width="880">
+</p>
+
+| Plain sentences | Offline in seconds | Costs nothing |
+|---|---|---|
+| A scenario anyone on the team can read is the spec; each sentence runs as one small Python step. | Built-in stand-ins for every system: the whole inventory runs in about 5 s, with no network and no accounts. | Free tools only: GitHub Actions on a public repository, a self-hosted Azure DevOps agent, OpenBao for secrets. |
+
+## A scenario is the spec
+
+```gherkin
+@api
+Feature: Order API
+  Background:
+    Given the JSON payload
+      """
+      {
+        "external_ref": "{{cid}}",
+        "currency": "EUR",
+        "items": [{"material": "MAT-100", "quantity": 2, "unit": "PCE"}]
+      }
+      """
+
+  @smoke
+  Scenario: Create an order and read it back
+    When I POST the payload to "/orders"
+    Then the response status is 201
+    And the response body matches the "order" schema
+    And the response field "external_ref" is "{{cid}}"
+```
+
+Each sentence is one small Python function, in [`features/steps/api_steps.py`](features/steps/api_steps.py):
+
+```python
+@when('I {method:w} the payload to "{path:S}"')
+def call_with_payload(context, method, path):
+    _call(context, method, path, body=context.payload)
+
+
+@then("the response status is {code:d}")
+def status_is(context, code):
+    r = context.response
+    assert r.status_code == code, f"expected HTTP {code}, got {r.status_code}: {r.text[:500]}"
+```
+
+## What it covers
+
+One inventory covers four integration patterns, plus the flows that cross them:
 
 | Tag | Pattern | What the scenarios prove |
 |---|---|---|
@@ -97,7 +163,8 @@ without Workato runs the rest unchanged. Behave tag expressions combine all of t
    entry means that cross-pattern flow is skipped.
 4. `python ci/run.py --env dev`.
 
-What each pattern expects from a real landscape:
+<details>
+<summary><b>What each pattern expects from a real landscape</b></summary>
 
 - **API**: bearer token, basic auth or OAuth2 client credentials; extra headers (an API-management key, for example);
   TLS verification on by default, or a company CA bundle. GETs are retried on 429/502/503/504.
@@ -120,6 +187,8 @@ What each pattern expects from a real landscape:
 - **SAP OData behind Apigee**: `[sap]` with the service's `base_url` and the gateway's key header. Locally it is a
   simulator; point `[sap]` at your own S/4HANA through Apigee the same way. If an AI agent starts your runs, read
   SAP's API Policy first: it restricts AI systems that execute SAP API calls.
+
+</details>
 
 Isolation: each scenario gets a fresh correlation id `{{cid}}` (and a 16-digit `{{docnum}}`), used in order references,
 file names and events. Runs never read each other's data, even on a shared environment.
@@ -205,6 +274,7 @@ ci/run.py            the one entry point for laptops and pipelines
 ci/stop_check.py     the Stop hook for AI agents (ci/claude-settings.json installs it)
 ops/openbao/bao.py   installs and runs OpenBao, the secret store on the agent machine
 ops/openbao/google_oauth.py  stores a Google OAuth refresh token in OpenBao
+docs/                the figure and the terminal recording at the top of this README
 ```
 
 ## Limits
