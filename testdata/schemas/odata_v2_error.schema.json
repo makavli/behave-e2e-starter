@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SAP Gateway (OData V2) error body",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {
+          "type": "object",
+          "required": ["value"],
+          "properties": {"lang": {"type": "string"}, "value": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

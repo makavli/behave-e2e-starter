@@ -1,0 +1,86 @@
+# Local run: the built-in simulators (e2e/sim), started by features/environment.py. Nothing leaves this machine,
+# except the @live scenarios ([youtube]), which run only when their key is there (`ci/run.py --secrets`).
+# ${E2E_SIM_URL}, ${E2E_SFTP_PORT} and ${E2E_SFTP_KNOWN_HOSTS} are filled in when the simulators start.
+# The credentials below are the simulators' own, not secrets.
+
+[run]
+simulators = true
+timeout_s = 10
+poll_s = 0.1
+
+[api]
+base_url = "${E2E_SIM_URL}/api"
+token = "local-api-token"
+idempotency_header = "Idempotency-Key"
+
+[mft]
+protocol = "sftp"
+host = "127.0.0.1"
+port = "${E2E_SFTP_PORT}"
+username = "e2e"
+password = "local-sftp-password"
+known_hosts = "${E2E_SFTP_KNOWN_HOSTS}"
+inbound = "/inbound"
+outbound = "/outbound"
+archive = "/archive"
+error = "/error"
+
+[idoc]
+endpoint = "${E2E_SIM_URL}/idoc"
+status_url = "${E2E_SIM_URL}/idoc/status/{docnum}"
+docnum_field = "docnum"
+sender_partner = "E2ETEST"
+receiver_partner = "SAPCLNT100"
+
+[workato]
+webhook_url = "${E2E_SIM_URL}/workato/webhooks/order-sync"
+webhook_secret = "local-webhook-secret"
+api_base = "${E2E_SIM_URL}/workato/api"
+api_token = "local-workato-token"
+recipe_id = "1001"
+
+[sap]
+# SAP's sales order OData service, simulated (e2e/sim/sap.py).
+base_url = "${E2E_SIM_URL}/sap/opu/odata/sap/API_SALES_ORDER_SRV"
+api_key = "local-sap-key"
+api_key_header = "APIKey"
+
+[flows]
+idoc_to_api = true
+workato_to_api = true
+idoc_over_mft = true
+
+[youtube]
+# A live third-party API. Its key comes from OpenBao (see [secrets]); with no key, its scenarios are skipped.
+base_url = "https://www.googleapis.com/youtube/v3"
+api_key = "${YOUTUBE_API_KEY:-}"
+api_key_header = "X-Goog-Api-Key"
+
+[youtube_owner]
+# Your own channel, through OAuth: a refresh token in OpenBao (ops/openbao/google_oauth.py) stands for your consent.
+# Uploads are private and deleted when their scenario ends; with no refresh token, their scenarios are skipped.
+base_url = "https://www.googleapis.com/youtube/v3"
+upload_url = "https://www.googleapis.com/upload/youtube/v3"
+token_url = "https://oauth2.googleapis.com/token"
+client_id = "${YOUTUBE_CLIENT_ID:-}"
+client_secret = "${YOUTUBE_CLIENT_SECRET:-}"
+refresh_token = "${YOUTUBE_REFRESH_TOKEN:-}"
+channel_id = ""  # your channel's id (UC...): every upload first checks the token acts for this channel, else refuses
+
+[publish]
+# A content/<name> folder to upload and keep on the channel (the pipeline's "publish" input); empty = none.
+content = "${E2E_PUBLISH:-}"
+
+[openbao]
+# The self-hosted secret store on the agent machine (ops/openbao/bao.py).
+addr = "${BAO_ADDR:-http://127.0.0.1:8200}"
+mount = "secret"
+approle_file = "${BAO_APPROLE_FILE:-~/.openbao/behave-ci.json}"
+
+[secrets]
+# Read by `ci/run.py --secrets` into environment variables: NAME = "<path>#<field>" in OpenBao.
+YOUTUBE_API_KEY = "behave/youtube#api_key"
+# A trailing ? = optional: while it is not in OpenBao, the variable stays unset and its scenarios are skipped.
+YOUTUBE_CLIENT_ID = "behave/youtube-oauth#client_id?"
+YOUTUBE_CLIENT_SECRET = "behave/youtube-oauth#client_secret?"
+YOUTUBE_REFRESH_TOKEN = "behave/youtube-oauth#refresh_token?"

@@ -1,0 +1,97 @@
+# Template for a real environment. Copy it to config/<env>.toml (dev.toml, test.toml...) and run:
+#   python ci/run.py --env dev
+# ${NAME} is read from an environment variable (a pipeline secret); ${NAME:-x} falls back to x.
+# Never write a secret in this file. Leave out a whole section to skip that pattern's scenarios, and an
+# optional key to skip the scenarios tagged @requires.<section>.<key>.
+
+[run]
+simulators = false
+timeout_s = 180   # how long an eventual result may take: a job, an IDoc status, a file delivery
+poll_s = 5
+
+[api]
+base_url = "https://api.dev.example.com/v1"
+# One auth: token = "${API_TOKEN}" (bearer) | username + password (basic) | OAuth2 client credentials:
+token_url = "https://login.example.com/oauth2/token"
+client_id = "${API_CLIENT_ID}"
+client_secret = "${API_CLIENT_SECRET}"
+# scope = "api://orders/.default"
+# headers = { "Ocp-Apim-Subscription-Key" = "${APIM_KEY}" }
+# api_key = "${API_KEY}"                 # sent in a header (never the URL), alone or with the auth above
+# api_key_header = "X-API-Key"           # the default
+# verify_tls = "config/corp-ca.pem"      # true (default), false, or a CA bundle for a company proxy
+# idempotency_header = "Idempotency-Key" # enables the idempotency scenario
+# order_lookup = "/orders?external_ref={ref}"
+# request_timeout_s = 30
+# retries = 2                            # GET retries on 429/502/503/504
+
+[mft]
+protocol = "sftp"                        # sftp | local (a drop folder or mounted share)
+host = "mft.dev.example.com"
+port = 22
+username = "${MFT_USER}"
+key_file = "${MFT_KEY_FILE}"             # or: password = "${MFT_PASSWORD}"
+# passphrase = "${MFT_KEY_PASSPHRASE}"
+known_hosts = "config/known_hosts"       # ssh-keyscan -p 22 mft.dev.example.com > config/known_hosts
+inbound = "/e2e/inbound"
+outbound = "/e2e/outbound"
+# archive = "/e2e/archive"               # enables the archive scenario
+# error = "/e2e/error"                   # enables the error-route scenarios
+# atomic_upload = true                   # upload as .part then rename; false if the server forbids renames
+# cleanup = true                         # remove this run's files afterwards
+
+[idoc]
+endpoint = "https://sap-dev.example.com/sap/bc/idoc_xml?sap-client=100"
+username = "${SAP_USER}"
+password = "${SAP_PASSWORD}"
+sender_partner = "E2ETEST"
+receiver_partner = "SAPCLNT100"
+# sender_port = "E2E"
+# receiver_port = "SAPDEV"
+# SAP gives every inbound IDoc its own number, so the sender's DOCNUM is not SAP's. The status scenarios need a
+# status_url that finds the IDoc by one of: {ref} = the order reference (BELNR) the test sent, always known;
+# {docnum} = SAP's number when docnum_field reads it from the endpoint's answer, else the sender's DOCNUM
+# (right only when the middleware keeps it).
+# status_url = "https://sap-dev.example.com/sap/opu/odata/sap/ZIDOC_STATUS_SRV/StatusByRef('{ref}')?$format=json"
+# status_field = "d.STATUS"              # where the status sits in the status_url's JSON
+# docnum_field = "docnum"                # where the assigned IDoc number sits in the send answer's JSON
+
+[workato]
+webhook_url = "https://webhooks.workato.com/webhooks/rest/REPLACE/order-sync"
+api_base = "https://www.workato.com/api" # EU data center: https://app.eu.workato.com/api
+api_token = "${WORKATO_API_TOKEN}"
+recipe_id = "123456"
+# webhook_secret = "${WORKATO_WEBHOOK_SECRET}"   # HMAC-SHA256 of the body; enables the forged-signature scenario
+# signature_header = "X-Signature"
+
+[flows]
+# The cross-pattern routes this landscape has:
+# idoc_to_api = true
+# workato_to_api = true
+# idoc_over_mft = true
+
+# Any other section is a named REST API, used after `Given the "<section>" API` (same keys as [api]):
+# [youtube]
+# base_url = "https://www.googleapis.com/youtube/v3"
+# api_key = "${YOUTUBE_API_KEY:-}"       # ":-" = no key, scenarios skipped (their @requires.youtube.api_key)
+# api_key_header = "X-Goog-Api-Key"
+# A user's own data (uploads, for example) needs their OAuth consent: token_url, client_id, client_secret and a
+# refresh_token (ops/openbao/google_oauth.py stores one), plus upload_url for media uploads, and channel_id: uploads
+# are refused unless the token acts for that channel (channels.list mine=true). See local.toml.
+# [publish]
+# content = "${E2E_PUBLISH:-}"           # a content/<name> folder to upload and keep (features/api/youtube_publish.feature)
+
+# S/4HANA OData behind Apigee, for the @sap scenarios:
+# [sap]
+# base_url = "https://apigee.example.com/s4/sap/opu/odata/sap/API_SALES_ORDER_SRV"
+# api_key = "${SAP_APIGEE_KEY}"
+# api_key_header = "x-apikey"
+
+# Secrets from OpenBao (ops/openbao/bao.py), read by `ci/run.py --secrets` before the run:
+# [openbao]
+# addr = "${BAO_ADDR:-http://127.0.0.1:8200}"
+# mount = "secret"
+# approle_file = "${BAO_APPROLE_FILE:-~/.openbao/behave-ci.json}"
+# [secrets]
+# YOUTUBE_API_KEY = "behave/youtube#api_key"   # environment variable = "<path>#<field>"; a trailing ? = optional
+# API_CLIENT_SECRET = "behave/dev-api#client_secret"

@@ -1,0 +1,11 @@
+# The publish path's own test: the 3-second vertical test clip, kept on the channel as a Short.
+title = "Publish test: a 3-second Short uploaded by a test pipeline #Shorts"
+description = """A 3-second test pattern, uploaded by a behave scenario from an Azure DevOps pipeline through the YouTube Data API, to prove the publish path end to end: upload, processing, an English caption track, kept.
+
+#Shorts #testautomation #behave"""
+tags = ["test automation", "behave", "gherkin", "azure devops", "youtube data api", "captions"]
+category_id = "28"
+language = "en"
+
+[captions]
+en = "English"

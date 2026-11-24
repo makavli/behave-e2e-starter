@@ -1,0 +1,74 @@
+# Behave E2E suite. Manual runs only, on the self-hosted pool: Microsoft-hosted (billed) agents are never used.
+# Pipelines > this pipeline > Run pipeline, then pick the environment and the tags.
+trigger: none
+pr: none
+
+parameters:
+  - name: environment
+    displayName: Environment (config/<name>.toml)
+    type: string
+    default: local
+  - name: tags
+    displayName: Behave tag expression
+    type: string
+    default: not @wip and not @keep
+  - name: secrets
+    displayName: Read the config's [secrets] from OpenBao on the agent machine
+    type: boolean
+    default: true
+  - name: publish
+    displayName: Publish and keep on the channel the folder content/<name> (none = nothing; tags @publish = only that)
+    type: string
+    default: none
+
+pool:
+  name: Default  # the self-hosted agent pool
+
+jobs:
+  - job: behave
+    displayName: Behave E2E (${{ parameters.environment }})
+    timeoutInMinutes: 60
+    variables:
+      E2E_ENV: ${{ parameters.environment }}
+      E2E_TAGS: ${{ parameters.tags }}
+      E2E_SECRETS: ${{ parameters.secrets }}
+      ${{ if ne(parameters.publish, 'none') }}:
+        E2E_PUBLISH: ${{ parameters.publish }}
+      PYTHONUTF8: 1
+    steps:
+      - checkout: self
+        clean: true
+
+      # Secrets: ci/run.py logs in to OpenBao on the agent machine with the AppRole in ~/.openbao/behave-ci.json,
+      # reads the config's [secrets], registers each value with task.setsecret (masked in every log line after)
+      # and revokes its token. Nothing secret is stored in Azure DevOps. See ops/openbao/bao.py.
+      - script: py -3-64 ci/run.py
+        displayName: Run behave (Windows agent)
+        condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+
+      - script: python3 ci/run.py
+        displayName: Run behave (Linux or macOS agent)
+        condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
+
+      - task: PublishTestResults@2
+        displayName: Publish test results
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: reports/junit/*.xml
+          mergeTestResults: true  # one test run per pipeline run, not one per feature file
+          testRunTitle: Behave ${{ parameters.environment }}
+
+      # Allure Report tab on the run page. Extension "Allure Report" (qameta.allure-azure-pipelines, free) must be
+      # installed in the organization; it builds the report with its bundled Allure 3 (no Java, no download).
+      - task: PublishAllureReport@2
+        displayName: Publish the Allure report
+        condition: succeededOrFailed()
+        inputs:
+          testResultsDir: reports/allure-results
+          reportName: Behave ${{ parameters.environment }}
+
+      - publish: reports
+        artifact: e2e-reports-$(System.JobAttempt)
+        displayName: Keep the reports
+        condition: succeededOrFailed()

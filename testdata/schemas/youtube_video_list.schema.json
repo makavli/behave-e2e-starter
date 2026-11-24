@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "YouTube Data API v3 videos.list response: the fields the scenarios rely on",
+  "type": "object",
+  "required": ["kind", "items", "pageInfo"],
+  "properties": {
+    "kind": {"const": "youtube#videoListResponse"},
+    "pageInfo": {
+      "type": "object",
+      "required": ["totalResults"],
+      "properties": {"totalResults": {"type": "integer", "minimum": 0}}
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": {"const": "youtube#video"},
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{11}$"},
+          "snippet": {
+            "type": "object",
+            "required": ["title", "publishedAt", "channelId"],
+            "properties": {
+              "title": {"type": "string", "minLength": 1},
+              "publishedAt": {"type": "string"},
+              "channelId": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
