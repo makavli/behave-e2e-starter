@@ -1,0 +1,2 @@
+# content/ text files keep LF on every checkout: uploads send them byte for byte
+content/** text=auto eol=lf

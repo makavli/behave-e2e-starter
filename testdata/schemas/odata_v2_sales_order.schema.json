@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "API_SALES_ORDER_SRV (OData V2) answer: one A_SalesOrder under d, or a collection under d.results",
+  "type": "object",
+  "required": ["d"],
+  "properties": {
+    "d": {"oneOf": [{"$ref": "#/$defs/collection"}, {"$ref": "#/$defs/salesOrder"}]}
+  },
+  "$defs": {
+    "collection": {
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {"type": "array", "items": {"$ref": "#/$defs/salesOrder"}},
+        "__count": {"type": "string", "pattern": "^[0-9]+$"},
+        "__next": {"type": "string"}
+      }
+    },
+    "salesOrder": {
+      "type": "object",
+      "required": ["__metadata", "SalesOrder"],
+      "properties": {
+        "__metadata": {
+          "type": "object",
+          "required": ["uri", "type"],
+          "properties": {
+            "uri": {"type": "string", "pattern": "A_SalesOrder\\('[^']+'\\)$"},
+            "type": {"const": "API_SALES_ORDER_SRV.A_SalesOrderType"}
+          }
+        },
+        "SalesOrder": {"type": "string", "minLength": 1, "maxLength": 10},
+        "SalesOrderType": {"type": ["string", "null"]},
+        "TransactionCurrency": {"type": ["string", "null"]},
+        "TotalNetAmount": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$", "description": "Edm.Decimal: a string in V2 JSON"},
+        "CreationDate": {"type": ["string", "null"], "pattern": "^/Date\\(-?[0-9]+([+-][0-9]{4})?\\)/$", "description": "Edm.DateTime in V2 JSON"}
+      }
+    }
+  }
+}

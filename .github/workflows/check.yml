@@ -1,0 +1,43 @@
+name: check
+
+# The one command a laptop and the Azure pipeline run, on GitHub's hosted runners (free on a public repository):
+# every scenario offline against the built-in simulators. The @live ones skip, since no key is here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: python ci/run.py
+        run: python ci/run.py
+
+  passed:
+    if: always()
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every check job succeeded
+        run: test "${{ needs.check.result }}" = "success"
