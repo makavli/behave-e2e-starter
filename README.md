@@ -163,6 +163,10 @@ is a Short. Without `publish_at`, the video stays private until you pick its vis
 app's publishing status is "Testing", your consent lasts seven days: run step 3 again each week, or publish the app
 (see "Limits").
 
+Two cautions. Run `--publish` only from a copy you trust: `config/local.toml` names the addresses your keys are
+sent to. And `content/` is not in `.gitignore`: a video committed to a public copy is public from that push, before
+its hour.
+
 ## With an AI coding agent
 
 An agent may say "done" without running the check. `ci/stop_check.py` is a Claude Code Stop hook that runs

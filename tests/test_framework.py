@@ -183,6 +183,27 @@ class PublishAtTest(unittest.TestCase):
             with self.subTest(body), self.assertRaises(AssertionError):
                 steps._channel_guard(body, "UCright")
 
+    def test_content_file_stays_in_its_folder(self):
+        """Only a content folder's own files are uploaded: a caption code with a path in it or a link out is refused."""
+        spec = importlib.util.spec_from_file_location("youtube_steps", config.ROOT / "features/steps/youtube_steps.py")
+        steps = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(steps)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp).resolve() / "one"
+            folder.mkdir()
+            (folder / "captions.en.vtt").write_text("WEBVTT\n")
+            (folder.parent / "private.vtt").write_text("not this folder's")
+            self.assertEqual(steps._file(folder, "captions.en.vtt"), folder / "captions.en.vtt")
+            for bad in ("../private.vtt", "captions.x/../../private.vtt", "captions.fr.vtt"):  # out, out, missing
+                with self.subTest(bad), self.assertRaises(AssertionError):
+                    steps._file(folder, bad)
+            try:
+                (folder / "video.mp4").symlink_to(folder.parent / "private.vtt")
+            except OSError:  # Windows without the right to make links
+                return
+            with self.assertRaises(AssertionError):
+                steps._file(folder, "video.mp4")
+
 
 if __name__ == "__main__":
     unittest.main()
