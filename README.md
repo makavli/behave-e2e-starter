@@ -131,7 +131,10 @@ publish it. From then on YouTube does the rest: your computer can be off.
    enable *YouTube Data API v3*. Under *Google Auth platform*, set the app up for *External* users and add your own
    Google account under *Audience* > *Test users*; under *Clients*, create a client of type *Desktop app*.
 2. **The secret store.** `python ops/openbao/bao.py install`, then store the client's two values (hidden prompts):
-   `python ops/openbao/bao.py put behave/youtube-oauth client_id`, and the same with `client_secret`.
+   `python ops/openbao/bao.py put behave/youtube-oauth client_id`, and the same with `client_secret`. On Windows,
+   run `put` in PowerShell or the VS Code terminal (Git Bash cannot hide the prompt). `install` downloads the
+   Windows build: on Linux or macOS, put the OpenBao binary at `~/.openbao/bin/bao` first. After a reboot,
+   `python ops/openbao/bao.py start`.
 3. **Your consent.** `python ops/openbao/google_oauth.py behave/youtube-oauth` opens Google's consent page: sign in
    with the account that owns the channel. The refresh token goes into OpenBao and is never shown.
 4. **Your channel's id** (`UC...`, shown at youtube.com/account_advanced), as `channel_id` under `[youtube_owner]`
@@ -153,7 +156,9 @@ publish it. From then on YouTube does the rest: your computer can be off.
    has processed it, checks that YouTube stored exactly that hour, adds the captions and checks they are listed,
    then keeps the video. A step that fails deletes the upload, and a run that uploaded nothing ends red.
 
-Without `publish_at`, the video stays private until you pick its visibility in YouTube Studio; without
+The file names are fixed: `video.mp4`, `meta.toml`, and one `captions.<code>.vtt` for each `<code>` under
+`[captions]`; `title`, `description` and `language` are required. A vertical or square video of at most 3 minutes
+is a Short. Without `publish_at`, the video stays private until you pick its visibility in YouTube Studio; without
 `[captions]`, no caption file is needed. `content/test-short` is a 3-second example to try first. While the Google
 app's publishing status is "Testing", your consent lasts seven days: run step 3 again each week, or publish the app
 (see "Limits").
