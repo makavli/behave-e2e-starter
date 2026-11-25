@@ -79,8 +79,9 @@ approle_file = "${BAO_APPROLE_FILE:-~/.openbao/behave-ci.json}"
 
 [secrets]
 # Read by `ci/run.py --secrets` into environment variables: NAME = "<path>#<field>" in OpenBao.
-YOUTUBE_API_KEY = "behave/youtube#api_key"
 # A trailing ? = optional: while it is not in OpenBao, the variable stays unset and its scenarios are skipped.
+# All four are optional here: uploading to your own channel needs the OAuth three, not the API key.
+YOUTUBE_API_KEY = "behave/youtube#api_key?"
 YOUTUBE_CLIENT_ID = "behave/youtube-oauth#client_id?"
 YOUTUBE_CLIENT_SECRET = "behave/youtube-oauth#client_secret?"
 YOUTUBE_REFRESH_TOKEN = "behave/youtube-oauth#refresh_token?"

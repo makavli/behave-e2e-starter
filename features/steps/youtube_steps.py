@@ -64,13 +64,22 @@ def _add_captions(context, path, language, name):
                    "application/octet-stream")
 
 
+def _file(folder, name):
+    """A content folder's own file. A link leading out of the folder (a clone can carry one) or a caption code with
+    a path in it would send some other local file to YouTube: refused."""
+    path = (folder / name).resolve()
+    if path.parent != folder or not path.is_file():
+        raise AssertionError(f"content/{folder.name}: '{name}' is not a file of that folder")
+    return path
+
+
 def _content(context):
     """The folder the publish input names: content/<name>, with its meta.toml read."""
     name = context.e2e.cfg.section("publish")["content"]
     folder = (CONTENT / name).resolve()
     if folder.parent != CONTENT.resolve() or not (folder / "meta.toml").is_file():  # a name, never a path
         raise AssertionError(f"publish = '{name}': no content/<name> folder with a meta.toml")
-    return folder, tomllib.loads((folder / "meta.toml").read_text(encoding="utf-8"))
+    return folder, tomllib.loads(_file(folder, "meta.toml").read_text(encoding="utf-8"))
 
 
 def _publish_at(meta, now=None):
@@ -112,7 +121,7 @@ def upload_content(context):
                "categoryId": meta.get("category_id", "28"), "defaultLanguage": meta["language"],
                "defaultAudioLanguage": meta["language"]}
     context.publish_at = _publish_at(meta)  # checked before anything is uploaded
-    _upload_video(context, {"snippet": snippet}, (folder / "video.mp4").read_bytes(), context.publish_at)
+    _upload_video(context, {"snippet": snippet}, _file(folder, "video.mp4").read_bytes(), context.publish_at)
 
 
 @then("the uploaded video's publish date is the content's")
@@ -176,7 +185,7 @@ def add_captions(context, file, language, name):
 def add_content_captions(context):
     folder, meta = context.content
     for language, name in meta.get("captions", {}).items():
-        response = _add_captions(context, folder / f"captions.{language}.vtt", language, name)
+        response = _add_captions(context, _file(folder, f"captions.{language}.vtt"), language, name)
         assert response.ok, f"caption track '{language}': HTTP {response.status_code} {response.text[:300]}"
 
 
@@ -185,5 +194,7 @@ def content_captions_listed(context):
     wanted = context.content[1].get("captions", {})
     client = context.e2e.client(context.api)
     response = expect_ok(client.call("GET", f"/captions?part=snippet&videoId={context.vars['video_id']}"), "captions")
-    listed = {item["snippet"]["language"]: item["snippet"]["name"] for item in response.json().get("items", [])}
+    # Once it has transcribed the video, YouTube lists its own speech track too (trackKind asr, no name): not ours.
+    listed = {s["language"]: s["name"] for s in (item["snippet"] for item in response.json().get("items", []))
+              if s.get("trackKind") != "asr"}
     assert listed == wanted, f"caption tracks: expected {wanted}, got {listed}"

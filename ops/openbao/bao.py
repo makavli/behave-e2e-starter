@@ -238,7 +238,7 @@ def install():
     write_config()
     start()
     initialize()
-    print(f"next: python ops/openbao/bao.py put behave/youtube api_key")
+    print("next: python ops/openbao/bao.py put <path> <key>, for each secret the README names")
 
 
 def _root_for(path):

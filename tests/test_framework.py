@@ -183,6 +183,48 @@ class PublishAtTest(unittest.TestCase):
             with self.subTest(body), self.assertRaises(AssertionError):
                 steps._channel_guard(body, "UCright")
 
+    def test_content_file_stays_in_its_folder(self):
+        """Only a content folder's own files are uploaded: a caption code with a path in it or a link out is refused."""
+        spec = importlib.util.spec_from_file_location("youtube_steps", config.ROOT / "features/steps/youtube_steps.py")
+        steps = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(steps)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp).resolve() / "one"
+            folder.mkdir()
+            (folder / "captions.en.vtt").write_text("WEBVTT\n")
+            (folder.parent / "private.vtt").write_text("not this folder's")
+            self.assertEqual(steps._file(folder, "captions.en.vtt"), folder / "captions.en.vtt")
+            for bad in ("../private.vtt", "captions.x/../../private.vtt", "captions.fr.vtt"):  # out, out, missing
+                with self.subTest(bad), self.assertRaises(AssertionError):
+                    steps._file(folder, bad)
+            try:
+                (folder / "video.mp4").symlink_to(folder.parent / "private.vtt")
+            except OSError:  # Windows without the right to make links
+                self.skipTest("no right to make links here: the link case is not checked")
+            with self.assertRaises(AssertionError):
+                steps._file(folder, "video.mp4")
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunTest(unittest.TestCase):
+    """ci/run.py --publish NAME: the secrets and the @publish tag in one word, and red when nothing was uploaded."""
+
+    def test_publish_option(self):
+        spec = importlib.util.spec_from_file_location("ci_run", config.ROOT / "ci/run.py")
+        run = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run)
+        with mock.patch.dict(os.environ, {"E2E_TAGS": "", "E2E_SECRETS": ""}):
+            args = run.options(["--publish", "my-short"])
+            self.assertEqual((args.publish, args.secrets, args.tags), ("my-short", True, "@publish"))
+            self.assertEqual(run.options(["--publish", "x", "--tags", "@publish and @smoke"]).tags, "@publish and @smoke")
+            self.assertEqual((run.options([]).publish, run.options([]).secrets, run.options([]).tags), (None, False, ""))
+        self.assertTrue((config.ROOT / "features/api/youtube_publish.feature").is_file())  # uploaded() reads its result
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(run.uploaded(Path(tmp)))  # no result at all
+            for skipped, want in (("1", False), ("0", True)):
+                (Path(tmp) / "TESTS-api.youtube_publish.xml").write_text(
+                    f'<testsuite name="x" tests="1" skipped="{skipped}">', encoding="utf-8")
+                self.assertEqual(run.uploaded(Path(tmp)), want)
