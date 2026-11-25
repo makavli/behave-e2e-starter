@@ -200,7 +200,7 @@ class PublishAtTest(unittest.TestCase):
             try:
                 (folder / "video.mp4").symlink_to(folder.parent / "private.vtt")
             except OSError:  # Windows without the right to make links
-                return
+                self.skipTest("no right to make links here: the link case is not checked")
             with self.assertRaises(AssertionError):
                 steps._file(folder, "video.mp4")
 
