@@ -186,3 +186,24 @@ class PublishAtTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunTest(unittest.TestCase):
+    """ci/run.py --publish NAME: the secrets and the @publish tag in one word, and red when nothing was uploaded."""
+
+    def test_publish_option(self):
+        spec = importlib.util.spec_from_file_location("ci_run", config.ROOT / "ci/run.py")
+        run = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run)
+        with mock.patch.dict(os.environ, {"E2E_TAGS": "", "E2E_SECRETS": ""}):
+            args = run.options(["--publish", "my-short"])
+            self.assertEqual((args.publish, args.secrets, args.tags), ("my-short", True, "@publish"))
+            self.assertEqual(run.options(["--publish", "x", "--tags", "@publish and @smoke"]).tags, "@publish and @smoke")
+            self.assertEqual((run.options([]).publish, run.options([]).secrets, run.options([]).tags), (None, False, ""))
+        self.assertTrue((config.ROOT / "features/api/youtube_publish.feature").is_file())  # uploaded() reads its result
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(run.uploaded(Path(tmp)))  # no result at all
+            for skipped, want in (("1", False), ("0", True)):
+                (Path(tmp) / "TESTS-api.youtube_publish.xml").write_text(
+                    f'<testsuite name="x" tests="1" skipped="{skipped}">', encoding="utf-8")
+                self.assertEqual(run.uploaded(Path(tmp)), want)

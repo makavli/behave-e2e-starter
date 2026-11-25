@@ -17,7 +17,7 @@ REST APIs, file transfer, SAP IDocs and Workato: offline in seconds, and the sam
 ![Cost: 0](https://img.shields.io/badge/cost-%240-2ea44f)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Run it](#run-it) · [Make it yours](#make-it-yours) · [AI agents](#with-an-ai-coding-agent) · [Pipelines](#pipelines) · [Secrets](#secrets-openbao-a-free-stand-in-for-azure-key-vault)
+[Run it](#run-it) · [Make it yours](#make-it-yours) · [Schedule a video](#schedule-a-video-on-your-own-channel) · [AI agents](#with-an-ai-coding-agent) · [Pipelines](#pipelines) · [Secrets](#secrets-openbao-a-free-stand-in-for-azure-key-vault)
 
 </div>
 
@@ -94,6 +94,7 @@ the same command on Windows, Ubuntu and macOS for every pull request. From the r
 ```bash
 python ci/run.py                               # everything, against the local simulators (about 5 s)
 python ci/run.py --secrets                     # the same, plus the @live scenarios, with keys from OpenBao
+python ci/run.py --publish my-short            # upload content/my-short to your channel and keep it (below)
 python ci/run.py --tags "@smoke"               # the smoke suite only
 python ci/run.py --tags "@mft and not @negative"
 python ci/run.py --env dev --tags "@api"       # against config/dev.toml
@@ -119,8 +120,43 @@ Plain `behave` works too, once the requirements are installed: `behave -D env=lo
    environments").
 3. For the `@live` YouTube scenarios: install OpenBao (below), store an API key from Google Cloud
    (`bao.py put behave/youtube api_key`), and run `python ci/run.py --secrets`.
-4. For uploads to your own channel: an OAuth client (below), and your channel's id (`UC...`, shown at
-   youtube.com/account_advanced) as `channel_id` in `config/local.toml`. Uploads refuse to start while it is empty or wrong.
+4. To upload to your own channel, and to schedule what you upload: the next section.
+
+## Schedule a video on your own channel
+
+One command uploads a folder to your channel as a private video, adds its captions and hands YouTube the hour to
+publish it. From then on YouTube does the rest: your computer can be off.
+
+1. **A Google OAuth client.** In the [Google Cloud console](https://console.cloud.google.com), make a project and
+   enable *YouTube Data API v3*. Under *Google Auth platform*, set the app up for *External* users and add your own
+   Google account under *Audience* > *Test users*; under *Clients*, create a client of type *Desktop app*.
+2. **The secret store.** `python ops/openbao/bao.py install`, then store the client's two values (hidden prompts):
+   `python ops/openbao/bao.py put behave/youtube-oauth client_id`, and the same with `client_secret`.
+3. **Your consent.** `python ops/openbao/google_oauth.py behave/youtube-oauth` opens Google's consent page: sign in
+   with the account that owns the channel. The refresh token goes into OpenBao and is never shown.
+4. **Your channel's id** (`UC...`, shown at youtube.com/account_advanced), as `channel_id` under `[youtube_owner]`
+   in `config/local.toml`. Every upload first checks that the token acts for that channel, and refuses otherwise.
+5. **A folder**, `content/my-short/`, with `video.mp4`, `captions.en.vtt` and a `meta.toml`:
+
+   ```toml
+   title = "My first scheduled Short #Shorts"
+   description = "Posted by one command."
+   tags = ["shorts"]
+   language = "en"
+   publish_at = 2027-01-04T18:00:00+01:00   # unquoted, with your UTC offset, at least an hour ahead
+
+   [captions]
+   en = "English"
+   ```
+
+6. **Publish it:** `python ci/run.py --publish my-short`. The run uploads the video private, waits until YouTube
+   has processed it, checks that YouTube stored exactly that hour, adds the captions and checks they are listed,
+   then keeps the video. A step that fails deletes the upload, and a run that uploaded nothing ends red.
+
+Without `publish_at`, the video stays private until you pick its visibility in YouTube Studio; without
+`[captions]`, no caption file is needed. `content/test-short` is a 3-second example to try first. While the Google
+app's publishing status is "Testing", your consent lasts seven days: run step 3 again each week, or publish the app
+(see "Limits").
 
 ## With an AI coding agent
 
@@ -147,7 +183,7 @@ still reviews and merges.
 | `@live` | calls a real external service (`--tags "not @live"` keeps a run fully offline) |
 | `@requires.<section>.<key>` | runs only when that config key is set, otherwise skipped with the reason |
 | `@wip` | left out by default |
-| `@publish` | publishes the `content/<name>` folder the pipeline's `publish` input names, and keeps it; skipped when none is named |
+| `@publish` | publishes the `content/<name>` folder named by `ci/run.py --publish <name>` or by the pipeline's `publish` input, and keeps it; skipped when none is named |
 | `@keep` | leaves what it made in place (a kept YouTube upload); left out unless named: `--tags @keep` |
 
 A scenario whose pattern has no section in the config (`[workato]`, for example) is skipped too, so a landscape

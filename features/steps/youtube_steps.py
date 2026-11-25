@@ -185,5 +185,7 @@ def content_captions_listed(context):
     wanted = context.content[1].get("captions", {})
     client = context.e2e.client(context.api)
     response = expect_ok(client.call("GET", f"/captions?part=snippet&videoId={context.vars['video_id']}"), "captions")
-    listed = {item["snippet"]["language"]: item["snippet"]["name"] for item in response.json().get("items", [])}
+    # Once it has transcribed the video, YouTube lists its own speech track too (trackKind asr, no name): not ours.
+    listed = {s["language"]: s["name"] for s in (item["snippet"] for item in response.json().get("items", []))
+              if s.get("trackKind") != "asr"}
     assert listed == wanted, f"caption tracks: expected {wanted}, got {listed}"
